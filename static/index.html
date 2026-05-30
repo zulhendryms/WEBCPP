@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>WEBCPP - SPA</title>
+  <style>
+    :root{--bg:#eef2f7;--card:#fff;--accent:#3498db;--accent-dark:#2980b9}
+    body{font-family:Inter,Arial,sans-serif;background:var(--bg);margin:0;color:#222}
+    header{background:#34495e;color:#fff;padding:18px;text-align:center}
+    nav{display:flex;gap:8px;justify-content:center;padding:12px}
+    nav button{background:var(--card);border:1px solid #ddd;padding:8px 14px;border-radius:8px;cursor:pointer}
+    nav button.active{background:var(--accent);color:#fff;border-color:transparent}
+    .container{max-width:900px;margin:28px auto;padding:20px}
+    .card{background:var(--card);padding:20px;border-radius:12px;box-shadow:0 6px 18px rgba(0,0,0,0.06)}
+    .hidden{display:none}
+    #gameCanvas{background:#0d47a1;border-radius:8px;display:block;margin:12px auto}
+    #score{font-weight:700}
+    .calc{max-width:320px;margin:10px auto}
+    .display{height:46px;background:#f3f3f3;padding:8px;border-radius:6px;text-align:right;font-size:20px}
+    .keys{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:8px}
+    .keys button{padding:14px;border-radius:6px;border:1px solid #ddd;background:#fff;cursor:pointer}
+  </style>
+</head>
+<body>
+  <header><h1>WEBCPP — Single Page App (Static)</h1></header>
+  <nav>
+    <button data-view="home" class="active">Home</button>
+    <button data-view="game">Mini Game</button>
+    <button data-view="calc">Kalkulator</button>
+  </nav>
+
+  <main class="container">
+    <section id="home" class="card">
+      <h2>Selamat datang</h2>
+      <p>Aplikasi ini disajikan sebagai SPA statis. Gunakan tab di atas untuk berpindah antar fitur tanpa reload.</p>
+      <p>Fitur: <b>Mini Game</b> (klik target untuk skor) dan <b>Kalkulator</b>.</p>
+    </section>
+
+    <section id="game" class="card hidden">
+      <h2>Mini Game — Klik Target</h2>
+      <p>Skor: <span id="score">0</span></p>
+      <canvas id="gameCanvas" width="600" height="300"></canvas>
+      <div style="text-align:center;margin-top:12px">
+        <button id="startBtn">Mulai</button>
+        <button id="resetBtn">Reset</button>
+      </div>
+    </section>
+
+    <section id="calc" class="card hidden">
+      <h2>Kalkulator Sederhana</h2>
+      <div class="calc">
+        <div id="display" class="display">0</div>
+        <div class="keys">
+          <button data-key="7">7</button><button data-key="8">8</button><button data-key="9">9</button><button data-op="/">÷</button>
+          <button data-key="4">4</button><button data-key="5">5</button><button data-key="6">6</button><button data-op="*">×</button>
+          <button data-key="1">1</button><button data-key="2">2</button><button data-key="3">3</button><button data-op="-">−</button>
+          <button data-key="0">0</button><button data-key=".">.</button><button id="eq">=</button><button data-op="+">+</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const buttons = document.querySelectorAll('nav button');
+    buttons.forEach(b=>b.addEventListener('click',()=>{
+      document.querySelectorAll('nav button').forEach(x=>x.classList.remove('active'));
+      b.classList.add('active');
+      document.querySelectorAll('main section').forEach(s=>s.classList.add('hidden'));
+      document.getElementById(b.dataset.view).classList.remove('hidden');
+    }));
+
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    let score = 0; let running = false; let target = {x:300,y:150,r:20}; let anim;
+    const scoreEl = document.getElementById('score');
+    function draw(){
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      ctx.beginPath(); ctx.fillStyle = '#ff5252'; ctx.arc(target.x,target.y,target.r,0,Math.PI*2); ctx.fill();
+      ctx.closePath();
+      if(running) anim = requestAnimationFrame(()=>{
+        target.x += (Math.random()-0.5)*80;
+        target.y += (Math.random()-0.5)*60;
+        target.x = Math.max(20, Math.min(canvas.width-20, target.x));
+        target.y = Math.max(20, Math.min(canvas.height-20, target.y));
+        draw();
+      });
+    }
+    canvas.addEventListener('click', (e)=>{
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left; const y = e.clientY - rect.top;
+      const d = Math.hypot(x-target.x, y-target.y);
+      if (d <= target.r) { score += 1; scoreEl.textContent = score; }
+    });
+    document.getElementById('startBtn').addEventListener('click',()=>{ if(!running){running=true; draw();}});
+    document.getElementById('resetBtn').addEventListener('click',()=>{ score=0; scoreEl.textContent=score; running=false; cancelAnimationFrame(anim); ctx.clearRect(0,0,canvas.width,canvas.height);});
+
+    const display = document.getElementById('display');
+    let current = '';
+    document.querySelectorAll('.keys button').forEach(b=>{
+      b.addEventListener('click', ()=>{
+        if (b.dataset.key) {
+          if (current === '0' && b.dataset.key !== '.') current = b.dataset.key; else current += b.dataset.key;
+          display.textContent = current;
+        } else if (b.dataset.op) {
+          if (current === '') return; current += b.dataset.op; display.textContent = current;
+        }
+      });
+    });
+    document.getElementById('eq').addEventListener('click', ()=>{
+      try { const result = Function('return '+current)(); display.textContent = String(result); current = String(result); } catch(e){ display.textContent = 'Error'; current=''; }
+    });
+  </script>
+</body>
+</html>
