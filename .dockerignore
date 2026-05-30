@@ -1,8 +1,0 @@
-server
-*.o
-*.exe
-*.out
-/.git
-/.github
-node_modules
-dist
