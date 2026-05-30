@@ -2,7 +2,7 @@
 
 Repository ini berisi server HTTP sederhana ditulis dengan C++ yang menyajikan sebuah Single Page Application (SPA) berisi:
 - Halaman utama
-- Mini game (klik target)
+- Game Snake
 - Kalkulator sederhana
 
 Semua fitur di-render oleh HTML/CSS/JS yang dikirim oleh server C++.

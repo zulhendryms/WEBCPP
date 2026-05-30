@@ -51,7 +51,7 @@ void handle_client(int client_sock) {
         .card{background:var(--card);padding:20px;border-radius:12px;box-shadow:0 6px 18px rgba(0,0,0,0.06)}
         .hidden{display:none}
         /* Game styles */
-        #gameCanvas{background:#0d47a1;border-radius:8px;display:block;margin:12px auto}
+        #gameCanvas{background:#222;border-radius:8px;display:block;margin:12px auto}
         #score{font-weight:700}
         /* Calculator */
         .calc{max-width:320px;margin:10px auto}
@@ -64,7 +64,7 @@ void handle_client(int client_sock) {
     <header><h1>WEBCPP — Single Page App (C++ Server)</h1></header>
     <nav>
         <button data-view="home" class="active">Home</button>
-        <button data-view="game">Mini Game</button>
+        <button data-view="game">Game Snake</button>
         <button data-view="calc">Kalkulator</button>
     </nav>
 
@@ -72,16 +72,15 @@ void handle_client(int client_sock) {
         <section id="home" class="card">
             <h2>Selamat datang</h2>
             <p>Aplikasi ini disajikan oleh server C++ sederhana. Gunakan tab di atas untuk berpindah antar fitur tanpa reload.</p>
-            <p>Fitur: <b>Mini Game</b> (klik target untuk skor) dan <b>Kalkulator</b>.</p>
+            <p>Fitur: <b>Game Snake</b> (makan untuk skor) dan <b>Kalkulator</b>.</p>
         </section>
 
         <section id="game" class="card hidden">
-            <h2>Mini Game — Klik Target</h2>
-            <p>Skor: <span id="score">0</span></p>
-            <canvas id="gameCanvas" width="600" height="300"></canvas>
+            <h2>Game Snake</h2>
+            <p>Skor: <span id="score">0</span> (Gunakan arah panah / WASD)</p>
+            <canvas id="gameCanvas" width="400" height="400"></canvas>
             <div style="text-align:center;margin-top:12px">
-                <button id="startBtn">Mulai</button>
-                <button id="resetBtn">Reset</button>
+                <button id="startBtn">Mulai/Restart</button>
             </div>
         </section>
 
@@ -109,35 +108,84 @@ void handle_client(int client_sock) {
             document.getElementById(b.dataset.view).classList.remove('hidden');
         }));
 
-        // --- Mini Game ---
+        // --- Game Snake ---
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
-        let score = 0; let running = false; let target = {x:300,y:150,r:20}; let anim;
+        let score = 0; let running = false; let anim;
         const scoreEl = document.getElementById('score');
 
-        function draw(){
+        const gridSize = 20;
+        let snake = [{x: 160, y: 160}];
+        let food = {x: 80, y: 80};
+        let dx = gridSize; let dy = 0;
+        let lastTime = 0;
+
+        function resetGame() {
+            snake = [{x: 160, y: 160}];
+            dx = gridSize; dy = 0;
+            score = 0; scoreEl.textContent = score;
+            spawnFood();
+        }
+
+        function spawnFood() {
+            food.x = Math.floor(Math.random() * (canvas.width / gridSize)) * gridSize;
+            food.y = Math.floor(Math.random() * (canvas.height / gridSize)) * gridSize;
+        }
+
+        function gameLoop(time) {
+            if (!running) return;
+            anim = requestAnimationFrame(gameLoop);
+            if (time - lastTime < 100) return; // 10 fps
+            lastTime = time;
+            updateSnake();
+            drawSnake();
+        }
+
+        function updateSnake() {
+            const head = {x: snake[0].x + dx, y: snake[0].y + dy};
+
+            // wall collision
+            if (head.x < 0 || head.x >= canvas.width || head.y < 0 || head.y >= canvas.height) {
+                running = false; alert("Game Over! Skor: " + score); return;
+            }
+            // self collision
+            for (let i = 0; i < snake.length; i++) {
+                if (head.x === snake[i].x && head.y === snake[i].y) {
+                    running = false; alert("Game Over! Skor: " + score); return;
+                }
+            }
+
+            snake.unshift(head);
+            if (head.x === food.x && head.y === food.y) {
+                score += 10; scoreEl.textContent = score; spawnFood();
+            } else {
+                snake.pop();
+            }
+        }
+
+        function drawSnake() {
             ctx.clearRect(0,0,canvas.width,canvas.height);
-            // draw target
-            ctx.beginPath(); ctx.fillStyle = '#ff5252'; ctx.arc(target.x,target.y,target.r,0,Math.PI*2); ctx.fill();
-            ctx.closePath();
-            if(running) anim = requestAnimationFrame(()=>{ // move slowly
-                target.x += (Math.random()-0.5)*80;
-                target.y += (Math.random()-0.5)*60;
-                target.x = Math.max(20, Math.min(canvas.width-20, target.x));
-                target.y = Math.max(20, Math.min(canvas.height-20, target.y));
-                draw();
+            ctx.fillStyle = '#ff5252';
+            ctx.fillRect(food.x, food.y, gridSize-2, gridSize-2);
+            ctx.fillStyle = '#4caf50';
+            snake.forEach(part => {
+                ctx.fillRect(part.x, part.y, gridSize-2, gridSize-2);
             });
         }
 
-        canvas.addEventListener('click', (e)=>{
-            const rect = canvas.getBoundingClientRect();
-            const x = e.clientX - rect.left; const y = e.clientY - rect.top;
-            const d = Math.hypot(x-target.x, y-target.y);
-            if (d <= target.r) { score += 1; scoreEl.textContent = score; }
-        });
+        document.addEventListener('keydown', e => {
+            if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)) e.preventDefault();
+            if (!running) return;
+            if ((e.key === 'ArrowUp' || e.key === 'w') && dy === 0) { dx = 0; dy = -gridSize; }
+            else if ((e.key === 'ArrowDown' || e.key === 's') && dy === 0) { dx = 0; dy = gridSize; }
+            else if ((e.key === 'ArrowLeft' || e.key === 'a') && dx === 0) { dx = -gridSize; dy = 0; }
+            else if ((e.key === 'ArrowRight' || e.key === 'd') && dx === 0) { dx = gridSize; dy = 0; }
+        }, {passive: false});
 
-        document.getElementById('startBtn').addEventListener('click',()=>{ if(!running){running=true; draw();}});
-        document.getElementById('resetBtn').addEventListener('click',()=>{ score=0; scoreEl.textContent=score; running=false; cancelAnimationFrame(anim); ctx.clearRect(0,0,canvas.width,canvas.height);});
+        document.getElementById('startBtn').addEventListener('click',()=>{
+            if(running) return;
+            resetGame(); running=true; lastTime = performance.now(); gameLoop(performance.now());
+        });
 
         // --- Kalkulator ---
         const display = document.getElementById('display');
